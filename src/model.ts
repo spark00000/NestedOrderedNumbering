@@ -232,11 +232,12 @@ export function transformInsertNumbering(text: string, selection: TextSelection)
   const selected = selectedLineBounds(text, selection);
   let inserted = false;
   for (let line = selected.start; line <= selected.end; line += 1) {
-    if (parseNumberedLine(rawLines[line])) {
+    const current = rawLines[line];
+    if (parseNumberedLine(current) || isBlankLine(current)) {
       continue;
     }
-    const indent = /^([ \t]*)/.exec(rawLines[line])?.[1] ?? "";
-    rawLines[line] = `${indent}0. ${rawLines[line].slice(indent.length)}`;
+    const indent = /^([ \t]*)/.exec(current)?.[1] ?? "";
+    rawLines[line] = `${indent}0. ${current.slice(indent.length)}`;
     inserted = true;
   }
   if (!inserted) {
@@ -334,14 +335,13 @@ function renumberBlock(lines: string[], start: number, end: number): void {
   const base = Math.min(...columns);
   const baseIndex = columns.indexOf(base);
   const baseIndent = entries[baseIndex].parsed.indent;
-  const unit = detectIndentWidth(columns, base);
+  const depths = deriveDepths(columns, base);
   const counters: number[] = [];
   let previousDepth = 0;
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index];
     const item = entry.parsed;
-    const rawDepth = Math.max(0, Math.round((columns[index] - base) / unit));
-    const depth = index === 0 ? 0 : Math.min(rawDepth, previousDepth + 1);
+    const depth = depths[index];
     if (depth > previousDepth) {
       while (counters.length <= depth) {
         counters.push(0);
@@ -358,6 +358,34 @@ function renumberBlock(lines: string[], start: number, end: number): void {
     const normalizedIndent = `${baseIndent}${HIERARCHY_INDENT.repeat(depth)}`;
     lines[entry.line] = `${normalizedIndent}${counters.join(".")}. ${item.content}`;
   }
+}
+
+// Derive hierarchy depths from the relative ordering of indentation columns
+// rather than absolute column/unit arithmetic. A stack holds the currently
+// open indentation context: each open column stays on the stack until a later
+// line is at or above that column, so a shallower line closes the deeper
+// context it no longer belongs to. The base column is depth 0; a deeper line
+// hangs one level beneath the most recent shallower column still open. This
+// stays correct even when indentation widths are inconsistent.
+function deriveDepths(columns: number[], base: number): number[] {
+  const depths: number[] = [];
+  const stack: Array<{ column: number; depth: number }> = [];
+  for (let index = 0; index < columns.length; index += 1) {
+    const column = columns[index];
+    if (stack.length === 0 || column <= base) {
+      stack.length = 0;
+      depths.push(0);
+      stack.push({ column, depth: 0 });
+      continue;
+    }
+    while (stack.length > 0 && stack[stack.length - 1].column >= column) {
+      stack.pop();
+    }
+    const depth = stack.length > 0 ? stack[stack.length - 1].depth + 1 : 0;
+    depths.push(depth);
+    stack.push({ column, depth });
+  }
+  return depths;
 }
 
 function numberedBlockBounds(lines: string[], line: number): { start: number; end: number } {

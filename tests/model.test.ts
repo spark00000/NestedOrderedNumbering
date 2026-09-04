@@ -149,4 +149,28 @@ describe("editing transforms", () => {
     const result = transformDeleteNumbering(input, { anchor: 0, head: input.indexOf("\n") });
     expect(result?.text).toBe("Alpha\n1. Beta");
   });
+
+  it("insert numbering leaves blank separator lines blank", () => {
+    const input = "Alpha\n\nBeta";
+    const result = transformInsertNumbering(input, { anchor: 0, head: input.length });
+    expect(result?.text).toBe("1. Alpha\n\n2. Beta");
+  });
+
+  it("derives depth relative to indentation rather than absolute columns", () => {
+    // The 7-column "b" line would distort the absolute GCD unit to 1 and push
+    // the shallower "c" to depth 3; relative ordering keeps it a sibling of "a".
+    const input = "1. Root\n   1.1. a\n      1.1.1. b\n   1.2. c";
+    expect(renumberText(input)).toBe(
+      "1. Root\n  1.1. a\n    1.1.1. b\n  1.2. c",
+    );
+  });
+
+  it("keeps deeper items nested under the current indentation context", () => {
+    // The second 4-column line must nest under the intervening 2-column line,
+    // not inherit the depth of the earlier 4-column line that shares its column.
+    const input = "1. Root\n    1.1. A\n  1.2. B\n    1.2.1. C";
+    expect(renumberText(input)).toBe(
+      "1. Root\n  1.1. A\n  1.2. B\n    1.2.1. C",
+    );
+  });
 });

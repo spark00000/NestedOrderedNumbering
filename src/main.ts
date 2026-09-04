@@ -53,6 +53,8 @@ const numberedLineViewPlugin = ViewPlugin.fromClass(class {
 export default class NestedOrderedNumberingPlugin extends Plugin {
   onload(): void {
     const captureHandler = (event: KeyboardEvent): void => this.handlePriorityKeydown(event);
+    // Capture-phase document handler wins over Outliner and other editor keymaps;
+    // the CodeMirror Prec.highest keymap below is the fallback for the same keys.
     document.addEventListener("keydown", captureHandler, true);
     this.register(() => document.removeEventListener("keydown", captureHandler, true));
 
