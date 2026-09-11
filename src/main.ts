@@ -26,6 +26,7 @@ import {
   transformIndent,
   transformInsertNumbering,
   transformRenumber,
+  transformStandaloneMarkdownStart,
 } from "./model";
 
 type Transformer = (text: string, selection: TextSelection) => TransformResult | null;
@@ -79,6 +80,33 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
           },
         ]),
       ),
+    );
+    this.registerEditorExtension(
+      EditorView.inputHandler.of((view, from, to, insertedText) => {
+        if (view.state.selection.ranges.length !== 1 || insertedText.length === 0) {
+          return false;
+        }
+
+        const before = view.state.doc.toString();
+        const prospective = `${before.slice(0, from)}${insertedText}${before.slice(to)}`;
+        const cursor = from + insertedText.length;
+        const result = transformStandaloneMarkdownStart(
+          prospective,
+          { anchor: cursor, head: cursor },
+        );
+        if (!result || result.text === prospective) {
+          return false;
+        }
+
+        const change = minimalChange(before, result.text);
+        view.dispatch({
+          changes: { from: change.from, to: change.to, insert: change.insert },
+          selection: EditorSelection.range(result.selection.anchor, result.selection.head),
+          scrollIntoView: true,
+          userEvent: "input.type",
+        });
+        return true;
+      }),
     );
     this.registerEditorExtension(numberedLineViewPlugin);
 
