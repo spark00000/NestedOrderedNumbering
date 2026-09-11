@@ -72,7 +72,7 @@ function applyFencedCodeContract(
   const start = logicalBlockStart(text, selection.head);
   const firstRoot = start === null ? null : rootNumberAtLine(text, start);
   const result = transform(text, selection);
-  if (!result || firstRoot === null || firstRoot === 1) {
+  if (!result || start === null || firstRoot === null || firstRoot === 1) {
     return result;
   }
 
