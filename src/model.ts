@@ -195,7 +195,7 @@ export function transformIndent(
   const subtreeIndent = indentationColumns(lastParsed.indent);
   for (let line = last + 1; line < oldLines.length; line += 1) {
     if (fencedLines[line]) {
-      break;
+      continue;
     }
     if (isBlankLine(oldLines[line])) {
       continue;
@@ -218,7 +218,7 @@ export function transformIndent(
     const currentColumns = indentationColumns(firstParsed.indent);
     let hasPreviousSibling = false;
     for (let line = first - 1; line >= bounds.start; line -= 1) {
-      if (isBlankLine(oldLines[line])) {
+      if (fencedLines[line] || isBlankLine(oldLines[line])) {
         continue;
       }
       const parsed = parseNumberedLine(oldLines[line]);
@@ -347,7 +347,8 @@ function renumberLines(lines: string[], touchStart: number, touchEnd: number): v
     let scan = line + 1;
     while (scan < lines.length) {
       if (fencedLines[scan]) {
-        break;
+        scan += 1;
+        continue;
       }
       if (parseNumberedLine(lines[scan])) {
         blockEnd = scan;
@@ -450,10 +451,13 @@ function numberedBlockBounds(lines: string[], line: number): { start: number; en
   let end = line;
   while (start > 0) {
     let candidate = start - 1;
-    while (candidate >= 0 && isBlankLine(lines[candidate]) && !fencedLines[candidate]) {
+    while (
+      candidate >= 0 &&
+      (fencedLines[candidate] || isBlankLine(lines[candidate]))
+    ) {
       candidate -= 1;
     }
-    if (candidate < 0 || fencedLines[candidate] || !parseNumberedLine(lines[candidate])) {
+    if (candidate < 0 || !parseNumberedLine(lines[candidate])) {
       break;
     }
     start = candidate;
@@ -462,16 +466,11 @@ function numberedBlockBounds(lines: string[], line: number): { start: number; en
     let candidate = end + 1;
     while (
       candidate < lines.length &&
-      isBlankLine(lines[candidate]) &&
-      !fencedLines[candidate]
+      (fencedLines[candidate] || isBlankLine(lines[candidate]))
     ) {
       candidate += 1;
     }
-    if (
-      candidate >= lines.length ||
-      fencedLines[candidate] ||
-      !parseNumberedLine(lines[candidate])
-    ) {
+    if (candidate >= lines.length || !parseNumberedLine(lines[candidate])) {
       break;
     }
     end = candidate;
@@ -510,9 +509,13 @@ function isBlankLine(line: string): boolean {
 }
 
 function detectIndentToken(lines: string[], start: number, end: number): string {
+  const fencedLines = fencedCodeLineMask(lines);
   const indents: string[] = [];
   const columns: number[] = [];
   for (let line = start; line <= end; line += 1) {
+    if (fencedLines[line]) {
+      continue;
+    }
     const parsed = parseNumberedLine(lines[line]);
     if (parsed) {
       indents.push(parsed.indent);

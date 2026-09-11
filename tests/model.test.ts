@@ -158,8 +158,6 @@ describe("editing transforms", () => {
   });
 
   it("derives depth relative to indentation rather than absolute columns", () => {
-    // The 7-column "b" line would distort the absolute GCD unit to 1 and push
-    // the shallower "c" to depth 3; relative ordering keeps it a sibling of "a".
     const input = "1. Root\n   1.1. a\n      1.1.1. b\n   1.2. c";
     expect(renumberText(input)).toBe(
       "1. Root\n  1.1. a\n    1.1.1. b\n  1.2. c",
@@ -167,8 +165,6 @@ describe("editing transforms", () => {
   });
 
   it("keeps deeper items nested under the current indentation context", () => {
-    // The second 4-column line must nest under the intervening 2-column line,
-    // not inherit the depth of the earlier 4-column line that shares its column.
     const input = "1. Root\n    1.1. A\n  1.2. B\n    1.2.1. C";
     expect(renumberText(input)).toBe(
       "1. Root\n  1.1. A\n  1.2. B\n    1.2.1. C",
@@ -188,7 +184,7 @@ describe("fenced code blocks", () => {
   it("does not renumber prefix-like text inside fenced code", () => {
     const input = "9. Before\n```text\n0.1.0. code\n```\n8. After";
     expect(renumberText(input)).toBe(
-      "1. Before\n```text\n0.1.0. code\n```\n1. After",
+      "1. Before\n```text\n0.1.0. code\n```\n2. After",
     );
   });
 
@@ -216,8 +212,84 @@ describe("fenced code blocks", () => {
     expect(renumberText(tildes)).toBe(tildes);
   });
 
-  it("keeps normal numbering outside fenced code active", () => {
+  it("keeps numbering continuous across fenced code", () => {
     const input = "9. Before\n```\n0.1.0. code\n```\n8. After";
-    expect(renumberText(input)).toBe("1. Before\n```\n0.1.0. code\n```\n1. After");
+    expect(renumberText(input)).toBe("1. Before\n```\n0.1.0. code\n```\n2. After");
+  });
+});
+
+describe("numbering continuity across fenced code", () => {
+  it("continues 14 to 15 after a fenced code block", () => {
+    const before = Array.from(
+      { length: 14 },
+      (_, index) => `${index + 1}. Item ${index + 1}`,
+    ).join("\n");
+    const input = [
+      before,
+      "",
+      "```text",
+      "code",
+      "```",
+      "",
+      "15. After fence",
+      "16. Next",
+      "17. Last",
+    ].join("\n");
+
+    expect(renumberText(input)).toBe(input);
+  });
+
+  it("Enter after 17 creates 18 without resetting the post-fence sequence", () => {
+    const before = Array.from(
+      { length: 14 },
+      (_, index) => `${index + 1}. Item ${index + 1}`,
+    ).join("\n");
+    const input = [
+      before,
+      "",
+      "```text",
+      "code",
+      "```",
+      "",
+      "15. After fence",
+      "16. Next",
+      "17. Last",
+    ].join("\n");
+
+    const result = transformEnter(input, { anchor: input.length, head: input.length });
+
+    expect(result?.text).toBe(`${input}\n18. `);
+  });
+
+  it("Tab on the new 18 turns it into 17.1 without renumbering 15-17", () => {
+    const before = Array.from(
+      { length: 14 },
+      (_, index) => `${index + 1}. Item ${index + 1}`,
+    ).join("\n");
+    const input = [
+      before,
+      "",
+      "```text",
+      "0.1.0. code",
+      "```",
+      "",
+      "15. After fence",
+      "16. Next",
+      "17. Last",
+    ].join("\n");
+
+    const entered = transformEnter(input, { anchor: input.length, head: input.length });
+    expect(entered?.text).toBe(`${input}\n18. `);
+
+    const indented = entered &&
+      transformIndent(entered.text, entered.selection, "indent");
+
+    expect(indented?.text).toBe(`${input}\n  17.1. `);
+  });
+
+  it("a normal unnumbered line still breaks numbering continuity", () => {
+    expect(renumberText("9. Before\nplain text\n8. After")).toBe(
+      "1. Before\nplain text\n1. After",
+    );
   });
 });
