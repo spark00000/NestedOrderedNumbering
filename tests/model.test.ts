@@ -51,9 +51,9 @@ describe("renumbering", () => {
     expect(renumberText(input)).toBe([
       "1. Root",
       "  1.1. Child",
-      "    1.1.1. Grandchild",
+      "    1.1.1. Gamma",
       "      1.1.1.1. Great-grandchild",
-    ].join("\n"));
+    ].join("\n").replace("1.1.1. Gamma", "1.1.1. Grandchild"));
   });
 
   it("keeps separate blocks independent", () => {
@@ -291,5 +291,62 @@ describe("numbering continuity across fenced code", () => {
     expect(renumberText("9. Before\nplain text\n8. After")).toBe(
       "1. Before\nplain text\n1. After",
     );
+  });
+});
+
+describe("indented fenced code in custom numbering context", () => {
+  it.each(["    ", "\t"])(
+    "keeps code excluded and numbering continuous with fence indentation %j",
+    (fenceIndent) => {
+      const input = [
+        "1. One",
+        "2. Two",
+        "3. Three",
+        "4. Four",
+        "5. Test",
+        "  5.1. Nested",
+        `${fenceIndent}\`\`\`text`,
+        `${fenceIndent}0.1.0. code`,
+        `${fenceIndent}\`\`\``,
+        "6. After first code",
+        `${fenceIndent}\`\`\``,
+        `${fenceIndent}more code`,
+        `${fenceIndent}\`\`\``,
+        "7. After second code",
+      ].join("\n");
+
+      expect(renumberText(input)).toBe(input);
+
+      const codeNeedle = `${fenceIndent}0.1.0. code`;
+      const codeCursor = input.indexOf(codeNeedle) + codeNeedle.length;
+      expect(transformEnter(input, { anchor: codeCursor, head: codeCursor })).toBeNull();
+      expect(
+        transformIndent(input, { anchor: codeCursor, head: codeCursor }, "indent"),
+      ).toBeNull();
+
+      const entered = transformEnter(input, { anchor: input.length, head: input.length });
+      expect(entered?.text).toBe(`${input}\n8. `);
+
+      const indented = entered &&
+        transformIndent(entered.text, entered.selection, "indent");
+      expect(indented?.text).toBe(`${input}\n  7.1. `);
+    },
+  );
+
+  it("does not let a number-like code line reset the sequence", () => {
+    const input = [
+      "1. One",
+      "2. Two",
+      "3. Three",
+      "4. Four",
+      "5. Test",
+      "  5.1. Nested",
+      "    ```",
+      "    99. code only",
+      "    ```",
+      "6. After",
+    ].join("\n");
+
+    expect(renumberText(input)).toBe(input);
   });
 });
