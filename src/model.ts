@@ -479,7 +479,7 @@ function numberedBlockBounds(lines: string[], line: number): { start: number; en
 }
 
 function parseOpeningFence(line: string): FenceMarker | null {
-  const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  const match = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(line);
   if (!match) {
     return null;
   }
@@ -497,7 +497,7 @@ function parseOpeningFence(line: string): FenceMarker | null {
 }
 
 function isClosingFence(line: string, opening: FenceMarker): boolean {
-  const match = /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
+  const match = /^[ \t]*(`+|~+)[ \t]*$/.exec(line);
   if (!match) {
     return false;
   }
