@@ -27,6 +27,7 @@ import {
   transformInsertNumbering,
   transformRenumber,
 } from "./model";
+import { transformStandaloneMarkdownStart } from "./standalone-markdown";
 
 type Transformer = (text: string, selection: TextSelection) => TransformResult | null;
 
@@ -54,8 +55,6 @@ const numberedLineViewPlugin = ViewPlugin.fromClass(class {
 export default class NestedOrderedNumberingPlugin extends Plugin {
   onload(): void {
     const captureHandler = (event: KeyboardEvent): void => this.handlePriorityKeydown(event);
-    // Capture-phase document handler wins over Outliner and other editor keymaps;
-    // the CodeMirror Prec.highest keymap below is the fallback for the same keys.
     document.addEventListener("keydown", captureHandler, true);
     this.register(() => document.removeEventListener("keydown", captureHandler, true));
 
@@ -80,6 +79,33 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
         ]),
       ),
     );
+    this.registerEditorExtension(
+      EditorView.inputHandler.of((view, from, to, insertedText) => {
+        if (view.state.selection.ranges.length !== 1 || insertedText.length === 0) {
+          return false;
+        }
+
+        const before = view.state.doc.toString();
+        const prospective = `${before.slice(0, from)}${insertedText}${before.slice(to)}`;
+        const cursor = from + insertedText.length;
+        const result = transformStandaloneMarkdownStart(
+          prospective,
+          { anchor: cursor, head: cursor },
+        );
+        if (!result || result.text === prospective) {
+          return false;
+        }
+
+        const change = minimalChange(before, result.text);
+        view.dispatch({
+          changes: { from: change.from, to: change.to, insert: change.insert },
+          selection: EditorSelection.range(result.selection.anchor, result.selection.head),
+          scrollIntoView: true,
+          userEvent: "input.type",
+        });
+        return true;
+      }),
+    );
     this.registerEditorExtension(numberedLineViewPlugin);
 
     this.addEditorCommand(
@@ -97,7 +123,6 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
       "Renumber nested ordered block",
       transformRenumber,
     );
-
   }
 
   private handlePriorityKeydown(event: KeyboardEvent): void {
