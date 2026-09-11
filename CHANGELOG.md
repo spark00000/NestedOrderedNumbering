@@ -5,6 +5,19 @@ and use [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-09-11
+
+### Fixed
+
+- Fenced code blocks are fully excluded from Nested Ordered Numbering keyboard handling, so numbering-like text such as `1.1.` remains literal code.
+- Numbering remains continuous across standalone fenced code blocks, including non-1 starts such as `5.` -> code block -> `6.` and nested continuations.
+- Rebuilt and committed `main.js` from the current TypeScript sources so the shipped runtime contains the fenced-code fixes.
+
+### Added
+
+- Added Markdown regression vectors under `tests/` for fenced-code isolation, root continuity, non-1 starts, and nested continuity.
+- CI now verifies that a production build leaves committed `main.js` unchanged, preventing stale runtime bundles from passing verification.
+
 ## [0.3.4] - 2026-08-30
 
 ### Fixed
