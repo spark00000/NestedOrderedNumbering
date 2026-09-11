@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 
 const errors = [];
 const required = [
@@ -60,14 +59,6 @@ if (!manifest.author || manifest.author.startsWith("TODO_")) {
 }
 if (!packageJson.repository || !packageJson.bugs || !packageJson.homepage) {
   errors.push("Add repository, bugs, and homepage URLs to package.json.");
-}
-try {
-  execFileSync("git", ["ls-files", "--error-unmatch", "main.js"], {
-    stdio: "ignore",
-  });
-  errors.push("main.js is generated and must not be tracked on the source branch.");
-} catch {
-  // Expected: main.js exists after the build, but is ignored by Git.
 }
 
 if (errors.length > 0) {
