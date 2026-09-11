@@ -409,21 +409,11 @@ function renumberBlock(
       counters[depth] = (counters[depth] ?? 0) + 1;
     }
     previousDepth = depth;
-    // The numeric prefix grows by two characters per depth ("1." -> "1.1.").
-    // Two leading spaces per depth therefore keep each item's content start on
-    // a stable four-column rhythm instead of moving six columns per level.
     const normalizedIndent = `${baseIndent}${HIERARCHY_INDENT.repeat(depth)}`;
     lines[entry.line] = `${normalizedIndent}${counters.join(".")}. ${item.content}`;
   }
 }
 
-// Derive hierarchy depths from the relative ordering of indentation columns
-// rather than absolute column/unit arithmetic. A stack holds the currently
-// open indentation context: each open column stays on the stack until a later
-// line is at or above that column, so a shallower line closes the deeper
-// context it no longer belongs to. The base column is depth 0; a deeper line
-// hangs one level beneath the most recent shallower column still open. This
-// stays correct even when indentation widths are inconsistent.
 function deriveDepths(columns: number[], base: number): number[] {
   const depths: number[] = [];
   const stack: Array<{ column: number; depth: number }> = [];
@@ -479,7 +469,7 @@ function numberedBlockBounds(lines: string[], line: number): { start: number; en
 }
 
 function parseOpeningFence(line: string): FenceMarker | null {
-  const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  const match = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(line);
   if (!match) {
     return null;
   }
@@ -497,7 +487,7 @@ function parseOpeningFence(line: string): FenceMarker | null {
 }
 
 function isClosingFence(line: string, opening: FenceMarker): boolean {
-  const match = /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
+  const match = /^[ \t]*(`+|~+)[ \t]*$/.exec(line);
   if (!match) {
     return false;
   }
