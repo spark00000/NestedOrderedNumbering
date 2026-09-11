@@ -16,6 +16,7 @@ import {
 import {
   type TextSelection,
   type TransformResult,
+  fencedCodeLineMask,
   minimalChange,
   offsetToPosition,
   parseNumberedLine,
@@ -160,11 +161,12 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
 
 function buildNumberedLineDecorations(view: EditorView): DecorationSet {
   const lineStarts = new Set<number>();
+  const fencedLines = fencedCodeLineMask(view.state.doc.toString().split("\n"));
   for (const range of view.visibleRanges) {
     let position = range.from;
     while (position <= range.to) {
       const line = view.state.doc.lineAt(position);
-      if (parseNumberedLine(line.text)) {
+      if (!fencedLines[line.number - 1] && parseNumberedLine(line.text)) {
         lineStarts.add(line.from);
       }
       if (line.to >= range.to) {

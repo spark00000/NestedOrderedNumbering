@@ -6,6 +6,7 @@ import {
   transformEnter,
   transformIndent,
   transformInsertNumbering,
+  transformRenumber,
 } from "../src/model";
 
 describe("number parser", () => {
@@ -172,5 +173,51 @@ describe("editing transforms", () => {
     expect(renumberText(input)).toBe(
       "1. Root\n  1.1. A\n  1.2. B\n    1.2.1. C",
     );
+  });
+});
+
+describe("fenced code blocks", () => {
+  it("does not handle Enter on prefix-like text inside a backtick fence", () => {
+    const input = "```text\n0.1.0. code\n```";
+    const cursor = input.indexOf("0.1.0. code") + "0.1.0. code".length;
+    expect(transformEnter(input, { anchor: cursor, head: cursor })).toBeNull();
+    expect(transformIndent(input, { anchor: cursor, head: cursor }, "indent")).toBeNull();
+    expect(transformIndent(input, { anchor: cursor, head: cursor }, "outdent")).toBeNull();
+  });
+
+  it("does not renumber prefix-like text inside fenced code", () => {
+    const input = "9. Before\n```text\n0.1.0. code\n```\n8. After";
+    expect(renumberText(input)).toBe(
+      "1. Before\n```text\n0.1.0. code\n```\n1. After",
+    );
+  });
+
+  it("does not insert, delete, or renumber numbering inside a fence", () => {
+    const plain = "```text\nalpha\nbeta\n```";
+    const plainStart = plain.indexOf("alpha");
+    const plainEnd = plain.indexOf("beta") + "beta".length;
+    expect(transformInsertNumbering(plain, { anchor: plainStart, head: plainEnd })).toBeNull();
+
+    const numbered = "```text\n0.1.0. code\n```";
+    const lineStart = numbered.indexOf("0.1.0. code");
+    const lineEnd = lineStart + "0.1.0. code".length;
+    expect(transformDeleteNumbering(numbered, { anchor: lineStart, head: lineEnd })).toBeNull();
+    expect(transformRenumber(numbered, { anchor: lineStart, head: lineEnd })).toBeNull();
+  });
+
+  it("supports language info strings and tilde fences", () => {
+    const backticks = "```typescript\n0.1.0. code\n```";
+    const backtickCursor = backticks.indexOf("0.1.0. code") + "0.1.0. code".length;
+    expect(transformEnter(backticks, { anchor: backtickCursor, head: backtickCursor })).toBeNull();
+
+    const tildes = "~~~python\n0.1.0. code\n~~~";
+    const tildeCursor = tildes.indexOf("0.1.0. code") + "0.1.0. code".length;
+    expect(transformEnter(tildes, { anchor: tildeCursor, head: tildeCursor })).toBeNull();
+    expect(renumberText(tildes)).toBe(tildes);
+  });
+
+  it("keeps normal numbering outside fenced code active", () => {
+    const input = "9. Before\n```\n0.1.0. code\n```\n8. After";
+    expect(renumberText(input)).toBe("1. Before\n```\n0.1.0. code\n```\n1. After");
   });
 });

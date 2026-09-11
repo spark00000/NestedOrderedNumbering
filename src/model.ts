@@ -33,6 +33,34 @@ export interface MinimalChange {
 const TAB_WIDTH = 4;
 const HIERARCHY_INDENT = "  ";
 
+interface FenceMarker {
+  character: "`" | "~";
+  length: number;
+}
+
+export function fencedCodeLineMask(lines: string[]): boolean[] {
+  const mask = lines.map(() => false);
+  let activeFence: FenceMarker | null = null;
+
+  for (let line = 0; line < lines.length; line += 1) {
+    if (activeFence) {
+      mask[line] = true;
+      if (isClosingFence(lines[line], activeFence)) {
+        activeFence = null;
+      }
+      continue;
+    }
+
+    const openingFence = parseOpeningFence(lines[line]);
+    if (openingFence) {
+      mask[line] = true;
+      activeFence = openingFence;
+    }
+  }
+
+  return mask;
+}
+
 export function parseNumberedLine(line: string): ParsedNumberedLine | null {
   const match = NUMBERED_LINE_RE.exec(line);
   if (!match) {
@@ -105,6 +133,10 @@ export function transformEnter(text: string, selection: TextSelection): Transfor
   }
   const position = offsetToPosition(text, selection.head);
   const lines = text.split("\n");
+  const fencedLines = fencedCodeLineMask(lines);
+  if (fencedLines[position.line]) {
+    return null;
+  }
   const parsed = parseNumberedLine(lines[position.line]);
   if (!parsed || position.ch < parsed.contentStart) {
     return null;
@@ -142,10 +174,11 @@ export function transformIndent(
   direction: "indent" | "outdent",
 ): TransformResult | null {
   const oldLines = text.split("\n");
+  const fencedLines = fencedCodeLineMask(oldLines);
   const selected = selectedLineBounds(text, selection);
   const numberedLines: number[] = [];
   for (let line = selected.start; line <= selected.end; line += 1) {
-    if (parseNumberedLine(oldLines[line])) {
+    if (!fencedLines[line] && parseNumberedLine(oldLines[line])) {
       numberedLines.push(line);
     }
   }
@@ -161,6 +194,9 @@ export function transformIndent(
   }
   const subtreeIndent = indentationColumns(lastParsed.indent);
   for (let line = last + 1; line < oldLines.length; line += 1) {
+    if (fencedLines[line]) {
+      break;
+    }
     if (isBlankLine(oldLines[line])) {
       continue;
     }
@@ -205,6 +241,9 @@ export function transformIndent(
 
   const rawLines = [...oldLines];
   for (let line = first; line <= last; line += 1) {
+    if (fencedLines[line]) {
+      continue;
+    }
     const parsed = parseNumberedLine(rawLines[line]);
     if (!parsed) {
       continue;
@@ -228,12 +267,13 @@ export function transformIndent(
 
 export function transformInsertNumbering(text: string, selection: TextSelection): TransformResult | null {
   const oldLines = text.split("\n");
+  const fencedLines = fencedCodeLineMask(oldLines);
   const rawLines = [...oldLines];
   const selected = selectedLineBounds(text, selection);
   let inserted = false;
   for (let line = selected.start; line <= selected.end; line += 1) {
     const current = rawLines[line];
-    if (parseNumberedLine(current) || isBlankLine(current)) {
+    if (fencedLines[line] || parseNumberedLine(current) || isBlankLine(current)) {
       continue;
     }
     const indent = /^([ \t]*)/.exec(current)?.[1] ?? "";
@@ -250,10 +290,14 @@ export function transformInsertNumbering(text: string, selection: TextSelection)
 
 export function transformDeleteNumbering(text: string, selection: TextSelection): TransformResult | null {
   const oldLines = text.split("\n");
+  const fencedLines = fencedCodeLineMask(oldLines);
   const rawLines = [...oldLines];
   const selected = selectedLineBounds(text, selection);
   let removed = false;
   for (let line = selected.start; line <= selected.end; line += 1) {
+    if (fencedLines[line]) {
+      continue;
+    }
     const parsed = parseNumberedLine(rawLines[line]);
     if (!parsed) {
       continue;
@@ -291,9 +335,10 @@ function selectedLineBounds(text: string, selection: TextSelection): { start: nu
 }
 
 function renumberLines(lines: string[], touchStart: number, touchEnd: number): void {
+  const fencedLines = fencedCodeLineMask(lines);
   let line = 0;
   while (line < lines.length) {
-    if (!parseNumberedLine(lines[line])) {
+    if (fencedLines[line] || !parseNumberedLine(lines[line])) {
       line += 1;
       continue;
     }
@@ -301,6 +346,9 @@ function renumberLines(lines: string[], touchStart: number, touchEnd: number): v
     let blockEnd = line;
     let scan = line + 1;
     while (scan < lines.length) {
+      if (fencedLines[scan]) {
+        break;
+      }
       if (parseNumberedLine(lines[scan])) {
         blockEnd = scan;
         scan += 1;
@@ -313,15 +361,23 @@ function renumberLines(lines: string[], touchStart: number, touchEnd: number): v
       break;
     }
     if (blockEnd >= touchStart && blockStart <= touchEnd) {
-      renumberBlock(lines, blockStart, blockEnd);
+      renumberBlock(lines, blockStart, blockEnd, fencedLines);
     }
     line = scan;
   }
 }
 
-function renumberBlock(lines: string[], start: number, end: number): void {
+function renumberBlock(
+  lines: string[],
+  start: number,
+  end: number,
+  fencedLines = fencedCodeLineMask(lines),
+): void {
   const entries: Array<{ line: number; parsed: ParsedNumberedLine; columns: number }> = [];
   for (let line = start; line <= end; line += 1) {
+    if (fencedLines[line]) {
+      continue;
+    }
     const parsed = parseNumberedLine(lines[line]);
     if (parsed) {
       entries.push({ line, parsed, columns: indentationColumns(parsed.indent) });
@@ -389,29 +445,64 @@ function deriveDepths(columns: number[], base: number): number[] {
 }
 
 function numberedBlockBounds(lines: string[], line: number): { start: number; end: number } {
+  const fencedLines = fencedCodeLineMask(lines);
   let start = line;
   let end = line;
   while (start > 0) {
     let candidate = start - 1;
-    while (candidate >= 0 && isBlankLine(lines[candidate])) {
+    while (candidate >= 0 && isBlankLine(lines[candidate]) && !fencedLines[candidate]) {
       candidate -= 1;
     }
-    if (candidate < 0 || !parseNumberedLine(lines[candidate])) {
+    if (candidate < 0 || fencedLines[candidate] || !parseNumberedLine(lines[candidate])) {
       break;
     }
     start = candidate;
   }
   while (end + 1 < lines.length) {
     let candidate = end + 1;
-    while (candidate < lines.length && isBlankLine(lines[candidate])) {
+    while (
+      candidate < lines.length &&
+      isBlankLine(lines[candidate]) &&
+      !fencedLines[candidate]
+    ) {
       candidate += 1;
     }
-    if (candidate >= lines.length || !parseNumberedLine(lines[candidate])) {
+    if (
+      candidate >= lines.length ||
+      fencedLines[candidate] ||
+      !parseNumberedLine(lines[candidate])
+    ) {
       break;
     }
     end = candidate;
   }
   return { start, end };
+}
+
+function parseOpeningFence(line: string): FenceMarker | null {
+  const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  if (!match) {
+    return null;
+  }
+
+  const marker = match[1];
+  const remainder = match[2];
+  if (marker[0] === "`" && remainder.includes("`")) {
+    return null;
+  }
+
+  return {
+    character: marker[0] as "`" | "~",
+    length: marker.length,
+  };
+}
+
+function isClosingFence(line: string, opening: FenceMarker): boolean {
+  const match = /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
+  if (!match) {
+    return false;
+  }
+  return match[1][0] === opening.character && match[1].length >= opening.length;
 }
 
 function isBlankLine(line: string): boolean {
@@ -483,8 +574,10 @@ function mapEndpointByContent(before: string, after: string, offset: number): nu
   const newLines = after.split("\n");
   const oldLine = oldLines[oldPosition.line] ?? "";
   const newLine = newLines[oldPosition.line] ?? "";
-  const oldParsed = parseNumberedLine(oldLine);
-  const newParsed = parseNumberedLine(newLine);
+  const oldFencedLines = fencedCodeLineMask(oldLines);
+  const newFencedLines = fencedCodeLineMask(newLines);
+  const oldParsed = oldFencedLines[oldPosition.line] ? null : parseNumberedLine(oldLine);
+  const newParsed = newFencedLines[oldPosition.line] ? null : parseNumberedLine(newLine);
   const oldIndent = /^([ \t]*)/.exec(oldLine)?.[1] ?? "";
   const newIndent = /^([ \t]*)/.exec(newLine)?.[1] ?? "";
   const oldContentStart = oldParsed?.contentStart ?? oldIndent.length;
