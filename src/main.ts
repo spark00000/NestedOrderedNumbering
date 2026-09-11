@@ -17,6 +17,7 @@ import {
   type TextSelection,
   type TransformResult,
   fencedCodeLineMask,
+  isOffsetInFencedCode,
   minimalChange,
   offsetToPosition,
   parseNumberedLine,
@@ -26,8 +27,7 @@ import {
   transformIndent,
   transformInsertNumbering,
   transformRenumber,
-} from "./model";
-import { transformStandaloneMarkdownStart } from "./standalone-markdown";
+} from "./fenced-code-model";
 
 type Transformer = (text: string, selection: TextSelection) => TransformResult | null;
 
@@ -79,33 +79,6 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
         ]),
       ),
     );
-    this.registerEditorExtension(
-      EditorView.inputHandler.of((view, from, to, insertedText) => {
-        if (view.state.selection.ranges.length !== 1 || insertedText.length === 0) {
-          return false;
-        }
-
-        const before = view.state.doc.toString();
-        const prospective = `${before.slice(0, from)}${insertedText}${before.slice(to)}`;
-        const cursor = from + insertedText.length;
-        const result = transformStandaloneMarkdownStart(
-          prospective,
-          { anchor: cursor, head: cursor },
-        );
-        if (!result || result.text === prospective) {
-          return false;
-        }
-
-        const change = minimalChange(before, result.text);
-        view.dispatch({
-          changes: { from: change.from, to: change.to, insert: change.insert },
-          selection: EditorSelection.range(result.selection.anchor, result.selection.head),
-          scrollIntoView: true,
-          userEvent: "input.type",
-        });
-        return true;
-      }),
-    );
     this.registerEditorExtension(numberedLineViewPlugin);
 
     this.addEditorCommand(
@@ -123,6 +96,7 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
       "Renumber nested ordered block",
       transformRenumber,
     );
+
   }
 
   private handlePriorityKeydown(event: KeyboardEvent): void {
@@ -214,6 +188,9 @@ function applyViewTransform(view: EditorView, transformer: Transformer): boolean
   }
   const text = view.state.doc.toString();
   const main = view.state.selection.main;
+  if (isOffsetInFencedCode(text, main.head)) {
+    return false;
+  }
   const result = transformer(text, { anchor: main.anchor, head: main.head });
   if (!result || result.text === text) {
     return false;
@@ -230,7 +207,11 @@ function applyViewTransform(view: EditorView, transformer: Transformer): boolean
 
 function applyEditorTransform(editor: Editor, transformer: Transformer): boolean {
   const text = editor.getValue();
-  const result = transformer(text, editorSelection(editor, text));
+  const selection = editorSelection(editor, text);
+  if (isOffsetInFencedCode(text, selection.head)) {
+    return false;
+  }
+  const result = transformer(text, selection);
   if (!result || result.text === text) {
     return false;
   }
