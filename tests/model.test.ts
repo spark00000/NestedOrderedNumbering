@@ -51,9 +51,9 @@ describe("renumbering", () => {
     expect(renumberText(input)).toBe([
       "1. Root",
       "  1.1. Child",
-      "    1.1.1. Gamma",
+      "    1.1.1. Grandchild",
       "      1.1.1.1. Great-grandchild",
-    ].join("\n").replace("1.1.1. Gamma", "1.1.1. Grandchild"));
+    ].join("\n"));
   });
 
   it("keeps separate blocks independent", () => {
