@@ -1,11 +1,7 @@
 node_modules/
-main.js
 *.log
 .DS_Store
-.obsidian/
 .pnpm-store/
-BUILD_VERIFICATION.json
-ROLLBACK.md
-doc/
-_task/
-prompt.md
+.obsidian/
+_pArc/
+

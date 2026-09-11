@@ -1,0 +1,27 @@
+{
+  "VerifiedAt": "2026-08-24T06:54:55+02:00",
+  "Version": "0.3.1",
+  "ChangeBackup": "E:\\SRC\\NestedOrderedNumbering.change-backup-20260824-064915-tab-layout",
+  "BackupVerifiedFiles": 21,
+  "BackupSHA256": "all matched",
+  "AbsentBeforeChange": [
+    "project\\styles.css",
+    "test-vault-plugin\\styles.css",
+    "src-vault-plugin\\styles.css"
+  ],
+  "Tests": "12 passed",
+  "Lint": "passed",
+  "TypeCheck": "passed",
+  "Build": "passed",
+  "CompiledDecoration": "nested-ordered-numbering-line present",
+  "ReleaseGate": "blocked only by TODO_PUBLIC_AUTHOR and repository URLs",
+  "MainJsSHA256": "A045099DEA5C2D3C8C39D897B07C9C267361602AE34F62189D521371E8A9E96F",
+  "ManifestSHA256": "A231AE7C44EB97DC7F70FCBBBE2F55B370D582F55FFD10F97C68383894DEA089",
+  "StylesCssSHA256": "97B613C4ED94C356750BAEC39C59E286CE516AFFA9F758EFEAC9F7695DD53DA2",
+  "InstalledArtifactsMatchProject": true,
+  "InstalledAndEnabledIn": [
+    "E:\\TEST",
+    "E:\\SRC"
+  ],
+  "ManualReloadRequired": true
+}
