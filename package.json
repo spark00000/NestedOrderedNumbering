@@ -1,6 +1,6 @@
 {
   "name": "nested-ordered-numbering",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Hierarchical plain-text numbering with a trailing period at every depth.",
   "main": "main.js",
   "type": "module",

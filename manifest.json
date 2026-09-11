@@ -1,7 +1,7 @@
 {
   "id": "nested-ordered-numbering",
   "name": "Nested Ordered Numbering",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "minAppVersion": "1.5.0",
   "description": "Create and maintain hierarchical plain-text numbering with a trailing period at every depth.",
   "author": "spark00000",
