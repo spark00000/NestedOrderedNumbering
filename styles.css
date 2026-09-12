@@ -40,6 +40,13 @@
   border-width: 0;
 }
 
+/*
+ * Custom nested prefixes such as `9.1.` are plain text rather than native
+ * Markdown list markers. Reserve one prefix-width gutter on the line, then pull
+ * only the prefix span back into that gutter. The content therefore remains on
+ * the first visual line when it fits, while wrapped continuation lines begin at
+ * exactly the same content column.
+ */
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent,
 .markdown-source-view.mod-cm6
@@ -48,7 +55,16 @@
     --nested-ordered-numbering-hanging-indent,
     0px
   ) !important;
-  text-indent: calc(
+}
+
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line
+  .nested-ordered-numbering-hanging-prefix {
+  display: inline-block;
+  box-sizing: border-box;
+  width: var(--nested-ordered-numbering-hanging-indent, auto);
+  margin-inline-start: calc(
     0px - var(--nested-ordered-numbering-hanging-indent, 0px)
-  ) !important;
+  );
+  white-space: pre;
 }
