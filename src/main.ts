@@ -1,4 +1,4 @@
-import { EditorSelection, Prec, RangeSetBuilder } from "@codemirror/state";
+import { EditorSelection, Prec } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
@@ -34,6 +34,7 @@ type Transformer = (text: string, selection: TextSelection) => TransformResult |
 
 const NUMBERED_LINE_CLASS = "nested-ordered-numbering-line";
 const HANGING_INDENT_CLASS = "nested-ordered-numbering-hanging-indent";
+const HANGING_PREFIX_CLASS = "nested-ordered-numbering-hanging-prefix";
 const HANGING_INDENT_PROPERTY = "--nested-ordered-numbering-hanging-indent";
 const numberedLineDecoration = Decoration.line({
   attributes: { class: NUMBERED_LINE_CLASS },
@@ -99,7 +100,6 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
       "Renumber nested ordered block",
       transformRenumber,
     );
-
   }
 
   private handlePriorityKeydown(event: KeyboardEvent): void {
@@ -162,16 +162,35 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
 }
 
 function buildNumberedLineDecorations(view: EditorView): DecorationSet {
-  const lineIndents = new Map<number, number | null>();
+  const ranges = [];
   const fencedLines = fencedCodeLineMask(view.state.doc.toString().split("\n"));
   const measurePrefix = createPrefixMeasurer(view);
+
   for (const range of view.visibleRanges) {
     let position = range.from;
     while (position <= range.to) {
       const line = view.state.doc.lineAt(position);
-      if (!fencedLines[line.number - 1] && parseNumberedLine(line.text)) {
+      const parsed = fencedLines[line.number - 1] ? null : parseNumberedLine(line.text);
+      if (parsed) {
         const prefix = numberedLineHangingPrefixText(line.text);
-        lineIndents.set(line.from, prefix === null ? null : measurePrefix(prefix));
+        if (prefix === null) {
+          ranges.push(numberedLineDecoration.range(line.from));
+        } else {
+          const contentOffset = measurePrefix(prefix);
+          const lineDecoration = Decoration.line({
+            attributes: {
+              class: `${NUMBERED_LINE_CLASS} ${HANGING_INDENT_CLASS}`,
+              style: `${HANGING_INDENT_PROPERTY}: ${contentOffset.toFixed(3)}px;`,
+            },
+          });
+          ranges.push(lineDecoration.range(line.from));
+          ranges.push(
+            Decoration.mark({ class: HANGING_PREFIX_CLASS }).range(
+              line.from,
+              line.from + parsed.contentStart,
+            ),
+          );
+        }
       }
       if (line.to >= range.to) {
         break;
@@ -180,23 +199,7 @@ function buildNumberedLineDecorations(view: EditorView): DecorationSet {
     }
   }
 
-  const builder = new RangeSetBuilder<Decoration>();
-  for (const [lineStart, contentOffset] of [...lineIndents.entries()].sort(
-    ([left], [right]) => left - right,
-  )) {
-    if (contentOffset === null) {
-      builder.add(lineStart, lineStart, numberedLineDecoration);
-      continue;
-    }
-    const decoration = Decoration.line({
-      attributes: {
-        class: `${NUMBERED_LINE_CLASS} ${HANGING_INDENT_CLASS}`,
-        style: `${HANGING_INDENT_PROPERTY}: ${contentOffset.toFixed(3)}px;`,
-      },
-    });
-    builder.add(lineStart, lineStart, decoration);
-  }
-  return builder.finish();
+  return Decoration.set(ranges, true);
 }
 
 function createPrefixMeasurer(view: EditorView): (prefix: string) => number {
