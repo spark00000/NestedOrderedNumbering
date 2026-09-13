@@ -176,7 +176,13 @@ function buildNumberedLineDecorations(view: EditorView): DecorationSet {
         if (parts === null) {
           ranges.push(numberedLineDecoration.range(line.from));
         } else {
-          const hierarchyIndent = measureText(parts.indentText);
+          // Do not derive visual hierarchy spacing from literal leading spaces.
+          // Obsidian/CodeMirror may render those through special indentation DOM
+          // that this plugin intentionally neutralizes. The numeric hierarchy
+          // itself is authoritative: every additional segment is one visual
+          // depth, and CodeMirror's measured character width makes that depth
+          // independent of the source indentation DOM representation.
+          const hierarchyIndent = view.defaultCharacterWidth * parts.visualIndentColumns;
           const markerWidth = measureText(parts.markerText);
           const contentIndent = hierarchyIndent + markerWidth;
           const lineDecoration = Decoration.line({
