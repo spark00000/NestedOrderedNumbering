@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   expandTabs,
+  hangingIndentGeometry,
   numberedLineHangingParts,
 } from "../src/layout";
 
@@ -48,15 +49,42 @@ describe("numbered-line hanging indent", () => {
       markerFrom: 2,
       markerTo: 9,
     }],
-  ] as const)("derives a complete custom layout for %j", (line, expected) => {
+  ] as const)("derives complete source parts for %j", (line, expected) => {
     expect(numberedLineHangingParts(line)).toEqual(expected);
   });
 
-  it("derives visual hierarchy from numeric depth, not rendered source-indent DOM", () => {
+  it("keeps numeric depth metadata but does not use it as an extra visual offset", () => {
     expect(numberedLineHangingParts("9. text")?.visualIndentColumns).toBe(0);
-    expect(numberedLineHangingParts("9.1. text")?.visualIndentColumns).toBe(2);
-    expect(numberedLineHangingParts("9.1.1. text")?.visualIndentColumns).toBe(4);
-    expect(numberedLineHangingParts("9.1.1.1. text")?.visualIndentColumns).toBe(6);
+    expect(numberedLineHangingParts("  9.1. text")?.visualIndentColumns).toBe(2);
+    expect(numberedLineHangingParts("    9.1.1. text")?.visualIndentColumns).toBe(4);
+    expect(numberedLineHangingParts("      9.1.1.1. text")?.visualIndentColumns).toBe(6);
+  });
+
+  it("uses source-indent plus marker width once for the continuation column", () => {
+    expect(hangingIndentGeometry(0, 30)).toEqual({
+      contentIndent: 30,
+      firstLineTextIndent: -30,
+    });
+    expect(hangingIndentGeometry(20, 50)).toEqual({
+      contentIndent: 70,
+      firstLineTextIndent: -70,
+    });
+    expect(hangingIndentGeometry(40, 70)).toEqual({
+      contentIndent: 110,
+      firstLineTextIndent: -110,
+    });
+  });
+
+  it("does not double-apply hierarchy indentation", () => {
+    const sourceIndentWidth = 20;
+    const markerWidth = 50;
+    const geometry = hangingIndentGeometry(sourceIndentWidth, markerWidth);
+
+    // First-line source text begins at x=0 after text-indent. The two-space
+    // source indent then advances to x=20, so the marker begins exactly there.
+    expect(geometry.contentIndent + geometry.firstLineTextIndent).toBe(0);
+    expect(sourceIndentWidth).toBe(20);
+    expect(geometry.contentIndent).toBe(70);
   });
 
   it("keeps the source indentation available for editor/model semantics", () => {
