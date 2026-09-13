@@ -28,14 +28,18 @@ import {
   transformInsertNumbering,
   transformRenumber,
 } from "./fenced-code-model";
-import { expandTabs, numberedLineHangingParts } from "./layout";
+import {
+  expandTabs,
+  hangingIndentGeometry,
+  numberedLineHangingParts,
+} from "./layout";
 
 type Transformer = (text: string, selection: TextSelection) => TransformResult | null;
 
 const NUMBERED_LINE_CLASS = "nested-ordered-numbering-line";
 const HANGING_INDENT_CLASS = "nested-ordered-numbering-hanging-indent";
 const CONTENT_INDENT_PROPERTY = "--nested-ordered-numbering-content-indent";
-const MARKER_WIDTH_PROPERTY = "--nested-ordered-numbering-marker-width";
+const FIRST_LINE_TEXT_INDENT_PROPERTY = "--nested-ordered-numbering-first-line-text-indent";
 const numberedLineDecoration = Decoration.line({
   attributes: { class: NUMBERED_LINE_CLASS },
 });
@@ -176,21 +180,20 @@ function buildNumberedLineDecorations(view: EditorView): DecorationSet {
         if (parts === null) {
           ranges.push(numberedLineDecoration.range(line.from));
         } else {
-          // Do not derive visual hierarchy spacing from literal leading spaces.
-          // Obsidian/CodeMirror may render those through special indentation DOM
-          // that this plugin intentionally neutralizes. The numeric hierarchy
-          // itself is authoritative: every additional segment is one visual
-          // depth, and CodeMirror's measured character width makes that depth
-          // independent of the source indentation DOM representation.
-          const hierarchyIndent = view.defaultCharacterWidth * parts.visualIndentColumns;
+          // Source indentation is still present in the CodeMirror line. Measure
+          // that exact source indentation and the marker separately, then move
+          // only the first visual line back by their combined width. This keeps
+          // the marker at the source indentation column and wrapped continuations
+          // at the first content column without applying hierarchy spacing twice.
+          const sourceIndentWidth = measureText(expandTabs(parts.sourceIndentText));
           const markerWidth = measureText(parts.markerText);
-          const contentIndent = hierarchyIndent + markerWidth;
+          const geometry = hangingIndentGeometry(sourceIndentWidth, markerWidth);
           const lineDecoration = Decoration.line({
             attributes: {
               class: `${NUMBERED_LINE_CLASS} ${HANGING_INDENT_CLASS}`,
               style: [
-                `${CONTENT_INDENT_PROPERTY}: ${contentIndent.toFixed(3)}px;`,
-                `${MARKER_WIDTH_PROPERTY}: ${markerWidth.toFixed(3)}px;`,
+                `${CONTENT_INDENT_PROPERTY}: ${geometry.contentIndent.toFixed(3)}px;`,
+                `${FIRST_LINE_TEXT_INDENT_PROPERTY}: ${geometry.firstLineTextIndent.toFixed(3)}px;`,
               ].join(" "),
             },
           });
@@ -228,10 +231,9 @@ function createTextMeasurer(view: EditorView): (text: string) => number {
     if (cached !== undefined) {
       return cached;
     }
-    const expanded = expandTabs(text);
-    let width = context.measureText(expanded).width;
-    width += Math.max(0, expanded.length - 1) * letterSpacing;
-    width += [...expanded].filter((character) => character === " ").length * wordSpacing;
+    let width = context.measureText(text).width;
+    width += Math.max(0, text.length - 1) * letterSpacing;
+    width += [...text].filter((character) => character === " ").length * wordSpacing;
     const safeWidth = Number.isFinite(width) ? Math.max(0, width) : 0;
     cache.set(text, safeWidth);
     return safeWidth;
@@ -266,9 +268,9 @@ function applyViewTransform(view: EditorView, transformer: Transformer): boolean
   return true;
 }
 
-function applyEditorTransform(view: Editor, transformer: Transformer): boolean {
-  const text = view.getValue();
-  const selection = editorSelection(view, text);
+function applyEditorTransform(editor: Editor, transformer: Transformer): boolean {
+  const text = editor.getValue();
+  const selection = editorSelection(editor, text);
   if (isOffsetInFencedCode(text, selection.head)) {
     return false;
   }
@@ -276,7 +278,7 @@ function applyEditorTransform(view: Editor, transformer: Transformer): boolean {
   if (!result || result.text === text) {
     return false;
   }
-  applyEditorResult(view, text, result);
+  applyEditorResult(editor, text, result);
   return true;
 }
 
