@@ -41,16 +41,16 @@
 }
 
 /*
- * Custom nested prefixes such as `9.1.` are plain text rather than native
- * Markdown list markers. Keep two measurements separate:
+ * The source indentation and the complete numeric marker both remain in the
+ * actual CodeMirror line text. Reserve their combined width for continuation
+ * lines, then pull only the first visual line back by the same combined width.
+ * This yields:
  *
- *   hierarchy indent H = leading indentation before the number
- *   marker width M      = number + separator, for example `9.1. `
+ *   marker start       = source indentation
+ *   first content      = source indentation + marker width
+ *   wrapped content    = source indentation + marker width
  *
- * The line reserves H + M for the content column. Only the first visual line
- * is pulled left by M via text-indent, so the marker begins at H while wrapped
- * continuation lines remain at H + M. Leading indentation DOM is intentionally
- * neutralized above, so H is supplied exactly once by this padding calculation.
+ * and avoids the previous double-application of hierarchy indentation.
  */
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent,
@@ -60,7 +60,8 @@
     --nested-ordered-numbering-content-indent,
     0px
   ) !important;
-  text-indent: calc(
-    0px - var(--nested-ordered-numbering-marker-width, 0px)
+  text-indent: var(
+    --nested-ordered-numbering-first-line-text-indent,
+    0px
   ) !important;
 }
