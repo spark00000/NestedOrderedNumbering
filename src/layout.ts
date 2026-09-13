@@ -3,7 +3,8 @@ import { parseNumberedLine } from "./model";
 export const NUMBERED_LINE_TAB_SIZE = 2;
 
 export interface NumberedLineHangingParts {
-  indentText: string;
+  sourceIndentText: string;
+  visualIndentColumns: number;
   markerText: string;
   markerFrom: number;
   markerTo: number;
@@ -17,8 +18,11 @@ export function numberedLineHangingParts(
     return null;
   }
 
+  const depth = parsed.segments.length - 1;
+
   return {
-    indentText: parsed.indent,
+    sourceIndentText: parsed.indent,
+    visualIndentColumns: depth * NUMBERED_LINE_TAB_SIZE,
     markerText: `${parsed.number}${parsed.separator}`,
     markerFrom: parsed.indent.length,
     markerTo: parsed.contentStart,
