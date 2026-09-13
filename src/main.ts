@@ -28,14 +28,15 @@ import {
   transformInsertNumbering,
   transformRenumber,
 } from "./fenced-code-model";
-import { expandTabs, numberedLineHangingPrefixText } from "./layout";
+import { expandTabs, numberedLineHangingParts } from "./layout";
 
 type Transformer = (text: string, selection: TextSelection) => TransformResult | null;
 
 const NUMBERED_LINE_CLASS = "nested-ordered-numbering-line";
 const HANGING_INDENT_CLASS = "nested-ordered-numbering-hanging-indent";
 const HANGING_PREFIX_CLASS = "nested-ordered-numbering-hanging-prefix";
-const HANGING_INDENT_PROPERTY = "--nested-ordered-numbering-hanging-indent";
+const CONTENT_INDENT_PROPERTY = "--nested-ordered-numbering-content-indent";
+const MARKER_WIDTH_PROPERTY = "--nested-ordered-numbering-marker-width";
 const numberedLineDecoration = Decoration.line({
   attributes: { class: NUMBERED_LINE_CLASS },
 });
@@ -164,7 +165,7 @@ export default class NestedOrderedNumberingPlugin extends Plugin {
 function buildNumberedLineDecorations(view: EditorView): DecorationSet {
   const ranges = [];
   const fencedLines = fencedCodeLineMask(view.state.doc.toString().split("\n"));
-  const measurePrefix = createPrefixMeasurer(view);
+  const measureText = createTextMeasurer(view);
 
   for (const range of view.visibleRanges) {
     let position = range.from;
@@ -172,22 +173,27 @@ function buildNumberedLineDecorations(view: EditorView): DecorationSet {
       const line = view.state.doc.lineAt(position);
       const parsed = fencedLines[line.number - 1] ? null : parseNumberedLine(line.text);
       if (parsed) {
-        const prefix = numberedLineHangingPrefixText(line.text);
-        if (prefix === null) {
+        const parts = numberedLineHangingParts(line.text);
+        if (parts === null) {
           ranges.push(numberedLineDecoration.range(line.from));
         } else {
-          const contentOffset = measurePrefix(prefix);
+          const hierarchyIndent = measureText(parts.indentText);
+          const markerWidth = measureText(parts.markerText);
+          const contentIndent = hierarchyIndent + markerWidth;
           const lineDecoration = Decoration.line({
             attributes: {
               class: `${NUMBERED_LINE_CLASS} ${HANGING_INDENT_CLASS}`,
-              style: `${HANGING_INDENT_PROPERTY}: ${contentOffset.toFixed(3)}px;`,
+              style: [
+                `${CONTENT_INDENT_PROPERTY}: ${contentIndent.toFixed(3)}px;`,
+                `${MARKER_WIDTH_PROPERTY}: ${markerWidth.toFixed(3)}px;`,
+              ].join(" "),
             },
           });
           ranges.push(lineDecoration.range(line.from));
           ranges.push(
             Decoration.mark({ class: HANGING_PREFIX_CLASS }).range(
-              line.from,
-              line.from + parsed.contentStart,
+              line.from + parts.markerFrom,
+              line.from + parts.markerTo,
             ),
           );
         }
@@ -202,7 +208,7 @@ function buildNumberedLineDecorations(view: EditorView): DecorationSet {
   return Decoration.set(ranges, true);
 }
 
-function createPrefixMeasurer(view: EditorView): (prefix: string) => number {
+function createTextMeasurer(view: EditorView): (text: string) => number {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (!context) {
@@ -218,17 +224,17 @@ function createPrefixMeasurer(view: EditorView): (prefix: string) => number {
   const wordSpacing = cssPixels(style.wordSpacing);
   const cache = new Map<string, number>();
 
-  return (prefix: string): number => {
-    const cached = cache.get(prefix);
+  return (text: string): number => {
+    const cached = cache.get(text);
     if (cached !== undefined) {
       return cached;
     }
-    const expanded = expandTabs(prefix);
+    const expanded = expandTabs(text);
     let width = context.measureText(expanded).width;
     width += Math.max(0, expanded.length - 1) * letterSpacing;
     width += [...expanded].filter((character) => character === " ").length * wordSpacing;
     const safeWidth = Number.isFinite(width) ? Math.max(0, width) : 0;
-    cache.set(prefix, safeWidth);
+    cache.set(text, safeWidth);
     return safeWidth;
   };
 }
@@ -261,9 +267,9 @@ function applyViewTransform(view: EditorView, transformer: Transformer): boolean
   return true;
 }
 
-function applyEditorTransform(editor: Editor, transformer: Transformer): boolean {
-  const text = editor.getValue();
-  const selection = editorSelection(editor, text);
+function applyEditorTransform(view: Editor, transformer: Transformer): boolean {
+  const text = view.getValue();
+  const selection = editorSelection(view, text);
   if (isOffsetInFencedCode(text, selection.head)) {
     return false;
   }
@@ -271,7 +277,7 @@ function applyEditorTransform(editor: Editor, transformer: Transformer): boolean
   if (!result || result.text === text) {
     return false;
   }
-  applyEditorResult(editor, text, result);
+  applyEditorResult(view, text, result);
   return true;
 }
 
