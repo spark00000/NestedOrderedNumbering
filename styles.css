@@ -1,8 +1,8 @@
 /*
- * Obsidian may reclassify a numbered line as a native Markdown list line as
- * soon as a nested child appears. The plugin owns the visual hierarchy, so any
- * native list offset must be neutralized on every numbered line before the
- * plugin's own hanging-indent geometry is applied.
+ * Nested Ordered Numbering owns the visual geometry of every recognized line.
+ * Obsidian may still classify root/nested entries as HyperMD list lines and may
+ * inject indent/fold widgets when a child appears. Those widgets must not take
+ * horizontal space, otherwise the parent jumps and marker/content can split.
  */
 .markdown-source-view.mod-cm6 .cm-line.nested-ordered-numbering-line {
   tab-size: 2;
@@ -12,14 +12,6 @@
   padding-block-end: 0 !important;
 }
 
-/*
- * HyperMD-list-line receives native padding/text-indent when Obsidian decides
- * a root item now owns nested list content. That classification change was the
- * reason a long unbroken parent such as `2. 111111...` visibly jumped to the
- * right after Tab created `2.1.`. Force the physical and logical properties to
- * the plugin-owned values so the line cannot move when its Markdown role
- * changes.
- */
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.HyperMD-list-line,
 .markdown-source-view.mod-cm6
@@ -30,18 +22,16 @@
   padding-block-end: 0 !important;
 }
 
+/* Obsidian's generated Markdown-list marker/indent widgets must not add width. */
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line
   .cm-formatting-list-ol,
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line
-  .cm-formatting-list {
-  margin-inline-start: 0 !important;
-  margin-left: 0 !important;
-  padding-inline-start: 0 !important;
-  padding-left: 0 !important;
-}
-
+  .cm-formatting-list,
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line
+  .cm-hmd-list-indent,
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line
   .cm-indent,
@@ -49,10 +39,43 @@
   .cm-line.nested-ordered-numbering-line
   .cm-indent-spacing:last-child {
   min-width: 0 !important;
-  padding-inline-start: 0 !important;
-  padding-left: 0 !important;
+  width: 0 !important;
   margin-inline-start: 0 !important;
   margin-left: 0 !important;
+  margin-inline-end: 0 !important;
+  margin-right: 0 !important;
+  padding-inline-start: 0 !important;
+  padding-left: 0 !important;
+  padding-inline-end: 0 !important;
+  padding-right: 0 !important;
+}
+
+/*
+ * A fold indicator is inserted only after a parent acquires children. Its
+ * inline-box width must therefore be zero or the parent visibly jumps exactly
+ * when Tab creates the first child. The collapse icon stays absolutely
+ * positioned and remains usable without contributing to text flow.
+ */
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line
+  > .cm-fold-indicator {
+  display: inline-block !important;
+  position: relative !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  vertical-align: baseline !important;
+}
+
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line
+  > .cm-fold-indicator
+  > .collapse-indicator {
+  position: absolute !important;
+  right: 0 !important;
+  top: 0 !important;
 }
 
 .markdown-source-view.mod-cm6
@@ -70,14 +93,21 @@
 }
 
 /*
- * The source indentation and the complete numeric marker both remain in the
- * actual CodeMirror line text. Reserve their combined width for continuation
- * lines, then pull only the first visual line back by the same combined width.
+ * Plugin-owned geometry:
  *
- * These rules explicitly set both logical and physical left-side properties.
- * Obsidian/theme list CSS sometimes uses padding-left while this plugin used
- * padding-inline-start; after the line became HyperMD-list-line the native
- * physical padding could otherwise win and move the entire parent item.
+ *   S = measured source hierarchy indentation
+ *   M = measured numeric marker + separator
+ *
+ * Native indentation widgets above are collapsed to zero width, so the line
+ * itself supplies the complete layout:
+ *
+ *   marker start        = S
+ *   first content       = S + M
+ *   wrapped content     = S + M
+ *
+ * padding = S + M, while only M is pulled back on the first visual line.
+ * This keeps hierarchy indentation exactly once and makes parent geometry
+ * independent of whether Obsidian inserts list/fold DOM after a child appears.
  */
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent,
@@ -103,4 +133,6 @@
   ) !important;
   padding-block-start: 0 !important;
   padding-block-end: 0 !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
