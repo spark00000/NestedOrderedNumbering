@@ -47,9 +47,10 @@
  *   hierarchy indent H = leading indentation before the number
  *   marker width M      = number + separator, for example `9.1. `
  *
- * The content column is H + M. The line reserves that full content column,
- * while only the marker is pulled left by M. This leaves the marker itself at
- * H and keeps every wrapped continuation at H + M.
+ * The line reserves H + M for the content column. Only the first visual line
+ * is pulled left by M via text-indent, so the marker begins at H while wrapped
+ * continuation lines remain at H + M. Leading indentation DOM is intentionally
+ * neutralized above, so H is supplied exactly once by this padding calculation.
  */
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent,
@@ -59,16 +60,7 @@
     --nested-ordered-numbering-content-indent,
     0px
   ) !important;
-}
-
-.markdown-source-view.mod-cm6
-  .cm-line.nested-ordered-numbering-line
-  .nested-ordered-numbering-hanging-prefix {
-  display: inline-block;
-  box-sizing: border-box;
-  width: var(--nested-ordered-numbering-marker-width, auto);
-  margin-inline-start: calc(
+  text-indent: calc(
     0px - var(--nested-ordered-numbering-marker-width, 0px)
-  );
-  white-space: pre;
+  ) !important;
 }
