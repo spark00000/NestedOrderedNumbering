@@ -12,38 +12,47 @@ describe("numbered-line hanging indent", () => {
 
   it.each([
     ["  9.1. text", {
-      indentText: "  ",
+      sourceIndentText: "  ",
+      visualIndentColumns: 2,
       markerText: "9.1. ",
       markerFrom: 2,
       markerTo: 7,
     }],
     ["    9.1.1. text", {
-      indentText: "    ",
+      sourceIndentText: "    ",
+      visualIndentColumns: 4,
       markerText: "9.1.1. ",
       markerFrom: 4,
       markerTo: 11,
     }],
     ["      9.1.1.1. text", {
-      indentText: "      ",
+      sourceIndentText: "      ",
+      visualIndentColumns: 6,
       markerText: "9.1.1.1. ",
       markerFrom: 6,
       markerTo: 15,
     }],
     ["  10.12. text", {
-      indentText: "  ",
+      sourceIndentText: "  ",
+      visualIndentColumns: 2,
       markerText: "10.12. ",
       markerFrom: 2,
       markerTo: 9,
     }],
-  ] as const)("separates hierarchy indent and marker for %j", (line, expected) => {
+  ] as const)("separates hierarchy depth and marker for %j", (line, expected) => {
     expect(numberedLineHangingParts(line)).toEqual(expected);
   });
 
-  it("does not include hierarchy indentation in the marker range", () => {
+  it("derives visual hierarchy from numeric depth, not rendered source-indent DOM", () => {
+    expect(numberedLineHangingParts("9.1. text")?.visualIndentColumns).toBe(2);
+    expect(numberedLineHangingParts("9.1.1. text")?.visualIndentColumns).toBe(4);
+    expect(numberedLineHangingParts("9.1.1.1. text")?.visualIndentColumns).toBe(6);
+  });
+
+  it("keeps the source indentation available for editor/model semantics", () => {
     const parts = numberedLineHangingParts("    9.1.1. text");
     expect(parts).not.toBeNull();
-    expect(parts?.indentText).toBe("    ");
-    expect(parts?.markerText).toBe("9.1.1. ");
+    expect(parts?.sourceIndentText).toBe("    ");
     expect(parts?.markerFrom).toBe(4);
     expect(parts?.markerTo).toBe(11);
   });
