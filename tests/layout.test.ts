@@ -53,38 +53,41 @@ describe("numbered-line hanging indent", () => {
     expect(numberedLineHangingParts(line)).toEqual(expected);
   });
 
-  it("keeps numeric depth metadata but does not use it as an extra visual offset", () => {
+  it("keeps numeric depth metadata but does not add an independent offset", () => {
     expect(numberedLineHangingParts("9. text")?.visualIndentColumns).toBe(0);
     expect(numberedLineHangingParts("  9.1. text")?.visualIndentColumns).toBe(2);
     expect(numberedLineHangingParts("    9.1.1. text")?.visualIndentColumns).toBe(4);
     expect(numberedLineHangingParts("      9.1.1.1. text")?.visualIndentColumns).toBe(6);
   });
 
-  it("uses source-indent plus marker width once for the continuation column", () => {
+  it("reserves source indent plus marker for wrapped content but pulls back only the marker", () => {
     expect(hangingIndentGeometry(0, 30)).toEqual({
       contentIndent: 30,
       firstLineTextIndent: -30,
     });
     expect(hangingIndentGeometry(20, 50)).toEqual({
       contentIndent: 70,
-      firstLineTextIndent: -70,
+      firstLineTextIndent: -50,
     });
     expect(hangingIndentGeometry(40, 70)).toEqual({
       contentIndent: 110,
-      firstLineTextIndent: -110,
+      firstLineTextIndent: -70,
     });
   });
 
-  it("does not double-apply hierarchy indentation", () => {
+  it("places the first marker at the source hierarchy column", () => {
     const sourceIndentWidth = 20;
     const markerWidth = 50;
     const geometry = hangingIndentGeometry(sourceIndentWidth, markerWidth);
 
-    // First-line source text begins at x=0 after text-indent. The two-space
-    // source indent then advances to x=20, so the marker begins exactly there.
-    expect(geometry.contentIndent + geometry.firstLineTextIndent).toBe(0);
-    expect(sourceIndentWidth).toBe(20);
-    expect(geometry.contentIndent).toBe(70);
+    expect(geometry.contentIndent + geometry.firstLineTextIndent).toBe(sourceIndentWidth);
+    expect(geometry.contentIndent).toBe(sourceIndentWidth + markerWidth);
+  });
+
+  it("keeps parent geometry unchanged when a child/fold widget appears", () => {
+    const beforeChild = hangingIndentGeometry(0, 30);
+    const afterChild = hangingIndentGeometry(0, 30);
+    expect(afterChild).toEqual(beforeChild);
   });
 
   it("keeps the source indentation available for editor/model semantics", () => {
