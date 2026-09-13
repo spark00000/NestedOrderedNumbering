@@ -1,0 +1,26 @@
+name: V7 Build Artifact
+
+on:
+  push:
+    branches:
+      - fix/live-preview-hanging-indent-v7
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v7-main-js
+          path: main.js
+          if-no-files-found: error
