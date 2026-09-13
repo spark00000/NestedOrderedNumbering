@@ -44,11 +44,10 @@ export function hangingIndentGeometry(
   const safeMarkerWidth = Number.isFinite(markerWidth)
     ? Math.max(0, markerWidth)
     : 0;
-  const contentIndent = safeSourceIndentWidth + safeMarkerWidth;
 
   return {
-    contentIndent,
-    firstLineTextIndent: -contentIndent,
+    contentIndent: safeSourceIndentWidth + safeMarkerWidth,
+    firstLineTextIndent: -safeMarkerWidth,
   };
 }
 
