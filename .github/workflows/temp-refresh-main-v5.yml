@@ -1,0 +1,43 @@
+name: Temp Refresh main.js v5
+
+on:
+  push:
+    branches:
+      - fix/variable-prefix-hanging-indent-v5
+    paths:
+      - src/**
+      - tests/**
+      - styles.css
+      - .github/workflows/temp-refresh-main-v5.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm release:check
+      - name: Commit generated main.js and remove temporary workflow
+        run: |
+          rm .github/workflows/temp-refresh-main-v5.yml
+          git add main.js .github/workflows/temp-refresh-main-v5.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: refresh main.js for hanging indent v5"
+          git push
