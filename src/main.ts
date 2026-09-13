@@ -34,7 +34,6 @@ type Transformer = (text: string, selection: TextSelection) => TransformResult |
 
 const NUMBERED_LINE_CLASS = "nested-ordered-numbering-line";
 const HANGING_INDENT_CLASS = "nested-ordered-numbering-hanging-indent";
-const HANGING_PREFIX_CLASS = "nested-ordered-numbering-hanging-prefix";
 const CONTENT_INDENT_PROPERTY = "--nested-ordered-numbering-content-indent";
 const MARKER_WIDTH_PROPERTY = "--nested-ordered-numbering-marker-width";
 const numberedLineDecoration = Decoration.line({
@@ -190,12 +189,6 @@ function buildNumberedLineDecorations(view: EditorView): DecorationSet {
             },
           });
           ranges.push(lineDecoration.range(line.from));
-          ranges.push(
-            Decoration.mark({ class: HANGING_PREFIX_CLASS }).range(
-              line.from + parts.markerFrom,
-              line.from + parts.markerTo,
-            ),
-          );
         }
       }
       if (line.to >= range.to) {
