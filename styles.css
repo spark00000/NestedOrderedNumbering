@@ -42,17 +42,21 @@
 
 /*
  * Custom nested prefixes such as `9.1.` are plain text rather than native
- * Markdown list markers. Reserve one prefix-width gutter on the line, then pull
- * only the prefix span back into that gutter. The content therefore remains on
- * the first visual line when it fits, while wrapped continuation lines begin at
- * exactly the same content column.
+ * Markdown list markers. Keep two measurements separate:
+ *
+ *   hierarchy indent H = leading indentation before the number
+ *   marker width M      = number + separator, for example `9.1. `
+ *
+ * The content column is H + M. The line reserves that full content column,
+ * while only the marker is pulled left by M. This leaves the marker itself at
+ * H and keeps every wrapped continuation at H + M.
  */
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent,
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent.HyperMD-codeblock {
   padding-inline-start: var(
-    --nested-ordered-numbering-hanging-indent,
+    --nested-ordered-numbering-content-indent,
     0px
   ) !important;
 }
@@ -62,9 +66,9 @@
   .nested-ordered-numbering-hanging-prefix {
   display: inline-block;
   box-sizing: border-box;
-  width: var(--nested-ordered-numbering-hanging-indent, auto);
+  width: var(--nested-ordered-numbering-marker-width, auto);
   margin-inline-start: calc(
-    0px - var(--nested-ordered-numbering-hanging-indent, 0px)
+    0px - var(--nested-ordered-numbering-marker-width, 0px)
   );
   white-space: pre;
 }
