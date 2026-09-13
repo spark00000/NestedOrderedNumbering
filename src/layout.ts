@@ -10,6 +10,11 @@ export interface NumberedLineHangingParts {
   markerTo: number;
 }
 
+export interface HangingIndentGeometry {
+  contentIndent: number;
+  firstLineTextIndent: number;
+}
+
 export function numberedLineHangingParts(
   line: string,
 ): NumberedLineHangingParts | null {
@@ -26,6 +31,24 @@ export function numberedLineHangingParts(
     markerText: `${parsed.number}${parsed.separator}`,
     markerFrom: parsed.indent.length,
     markerTo: parsed.contentStart,
+  };
+}
+
+export function hangingIndentGeometry(
+  sourceIndentWidth: number,
+  markerWidth: number,
+): HangingIndentGeometry {
+  const safeSourceIndentWidth = Number.isFinite(sourceIndentWidth)
+    ? Math.max(0, sourceIndentWidth)
+    : 0;
+  const safeMarkerWidth = Number.isFinite(markerWidth)
+    ? Math.max(0, markerWidth)
+    : 0;
+  const contentIndent = safeSourceIndentWidth + safeMarkerWidth;
+
+  return {
+    contentIndent,
+    firstLineTextIndent: -contentIndent,
   };
 }
 
