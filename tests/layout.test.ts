@@ -5,12 +5,21 @@ import {
 } from "../src/layout";
 
 describe("numbered-line hanging indent", () => {
-  it("leaves standard root list markers to Obsidian's native list layout", () => {
-    expect(numberedLineHangingParts("6. text")).toBeNull();
-    expect(numberedLineHangingParts("10. text")).toBeNull();
-  });
-
   it.each([
+    ["6. text", {
+      sourceIndentText: "",
+      visualIndentColumns: 0,
+      markerText: "6. ",
+      markerFrom: 0,
+      markerTo: 3,
+    }],
+    ["10. text", {
+      sourceIndentText: "",
+      visualIndentColumns: 0,
+      markerText: "10. ",
+      markerFrom: 0,
+      markerTo: 4,
+    }],
     ["  9.1. text", {
       sourceIndentText: "  ",
       visualIndentColumns: 2,
@@ -39,11 +48,12 @@ describe("numbered-line hanging indent", () => {
       markerFrom: 2,
       markerTo: 9,
     }],
-  ] as const)("separates hierarchy depth and marker for %j", (line, expected) => {
+  ] as const)("derives a complete custom layout for %j", (line, expected) => {
     expect(numberedLineHangingParts(line)).toEqual(expected);
   });
 
   it("derives visual hierarchy from numeric depth, not rendered source-indent DOM", () => {
+    expect(numberedLineHangingParts("9. text")?.visualIndentColumns).toBe(0);
     expect(numberedLineHangingParts("9.1. text")?.visualIndentColumns).toBe(2);
     expect(numberedLineHangingParts("9.1.1. text")?.visualIndentColumns).toBe(4);
     expect(numberedLineHangingParts("9.1.1.1. text")?.visualIndentColumns).toBe(6);
