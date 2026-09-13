@@ -5,6 +5,9 @@ on:
     branches:
       - fix/live-preview-hanging-indent-v7
 
+permissions:
+  contents: write
+
 jobs:
   bundle:
     runs-on: ubuntu-24.04
@@ -19,6 +22,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Commit refreshed main.js when required
+        shell: bash
+        run: |
+          if git diff --quiet -- main.js; then
+            echo "main.js already matches production build"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f main.js
+          git commit -m "build: refresh v7 main.js"
+          git push origin HEAD:fix/live-preview-hanging-indent-v7
       - uses: actions/upload-artifact@v4
         with:
           name: v7-main-js
