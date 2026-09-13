@@ -2,12 +2,27 @@ import { parseNumberedLine } from "./model";
 
 export const NUMBERED_LINE_TAB_SIZE = 2;
 
-export function numberedLineHangingPrefixText(line: string): string | null {
+export interface NumberedLineHangingParts {
+  indentText: string;
+  markerText: string;
+  markerFrom: number;
+  markerTo: number;
+}
+
+export function numberedLineHangingParts(
+  line: string,
+): NumberedLineHangingParts | null {
   const parsed = parseNumberedLine(line);
   if (!parsed || parsed.segments.length < 2) {
     return null;
   }
-  return `${parsed.indent}${parsed.number}${parsed.separator}`;
+
+  return {
+    indentText: parsed.indent,
+    markerText: `${parsed.number}${parsed.separator}`,
+    markerFrom: parsed.indent.length,
+    markerTo: parsed.contentStart,
+  };
 }
 
 export function expandTabs(
