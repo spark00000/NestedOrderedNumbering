@@ -1,18 +1,45 @@
 /*
- * Obsidian parses a root `1.` as a Markdown list marker, then parses lines with
- * four or more leading spaces as list continuations or indented code. This
- * plugin's prefixes are plain-text hierarchy markers, so those built-in visual
- * offsets would make the first levels jump by different amounts. The editor
- * extension adds this class only to lines accepted by the plugin parser.
+ * Obsidian may reclassify a numbered line as a native Markdown list line as
+ * soon as a nested child appears. The plugin owns the visual hierarchy, so any
+ * native list offset must be neutralized on every numbered line before the
+ * plugin's own hanging-indent geometry is applied.
  */
 .markdown-source-view.mod-cm6 .cm-line.nested-ordered-numbering-line {
   tab-size: 2;
+  margin-inline-start: 0 !important;
+  margin-left: 0 !important;
+  padding-block-start: 0 !important;
+  padding-block-end: 0 !important;
+}
+
+/*
+ * HyperMD-list-line receives native padding/text-indent when Obsidian decides
+ * a root item now owns nested list content. That classification change was the
+ * reason a long unbroken parent such as `2. 111111...` visibly jumped to the
+ * right after Tab created `2.1.`. Force the physical and logical properties to
+ * the plugin-owned values so the line cannot move when its Markdown role
+ * changes.
+ */
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line.HyperMD-list-line,
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line[class*="HyperMD-list-line-"] {
+  margin-inline-start: 0 !important;
+  margin-left: 0 !important;
+  padding-block-start: 0 !important;
+  padding-block-end: 0 !important;
 }
 
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line
-  .cm-formatting-list-ol {
+  .cm-formatting-list-ol,
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line
+  .cm-formatting-list {
+  margin-inline-start: 0 !important;
+  margin-left: 0 !important;
   padding-inline-start: 0 !important;
+  padding-left: 0 !important;
 }
 
 .markdown-source-view.mod-cm6
@@ -23,11 +50,13 @@
   .cm-indent-spacing:last-child {
   min-width: 0 !important;
   padding-inline-start: 0 !important;
+  padding-left: 0 !important;
+  margin-inline-start: 0 !important;
+  margin-left: 0 !important;
 }
 
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.HyperMD-codeblock {
-  padding-inline-start: 0 !important;
   font-family: var(--font-text) !important;
   font-size: var(--font-text-size) !important;
   color: var(--text-normal);
@@ -44,19 +73,27 @@
  * The source indentation and the complete numeric marker both remain in the
  * actual CodeMirror line text. Reserve their combined width for continuation
  * lines, then pull only the first visual line back by the same combined width.
- * This yields:
  *
- *   marker start       = source indentation
- *   first content      = source indentation + marker width
- *   wrapped content    = source indentation + marker width
- *
- * and avoids the previous double-application of hierarchy indentation.
+ * These rules explicitly set both logical and physical left-side properties.
+ * Obsidian/theme list CSS sometimes uses padding-left while this plugin used
+ * padding-inline-start; after the line became HyperMD-list-line the native
+ * physical padding could otherwise win and move the entire parent item.
  */
 .markdown-source-view.mod-cm6
   .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent,
 .markdown-source-view.mod-cm6
-  .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent.HyperMD-codeblock {
+  .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent.HyperMD-codeblock,
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent.HyperMD-list-line,
+.markdown-source-view.mod-cm6
+  .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent[class*="HyperMD-list-line-"] {
+  margin-inline-start: 0 !important;
+  margin-left: 0 !important;
   padding-inline-start: var(
+    --nested-ordered-numbering-content-indent,
+    0px
+  ) !important;
+  padding-left: var(
     --nested-ordered-numbering-content-indent,
     0px
   ) !important;
@@ -64,4 +101,6 @@
     --nested-ordered-numbering-first-line-text-indent,
     0px
   ) !important;
+  padding-block-start: 0 !important;
+  padding-block-end: 0 !important;
 }
