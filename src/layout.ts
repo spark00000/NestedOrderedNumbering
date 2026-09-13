@@ -14,7 +14,7 @@ export function numberedLineHangingParts(
   line: string,
 ): NumberedLineHangingParts | null {
   const parsed = parseNumberedLine(line);
-  if (!parsed || parsed.segments.length < 2) {
+  if (!parsed) {
     return null;
   }
 
