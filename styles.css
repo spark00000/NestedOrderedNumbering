@@ -39,16 +39,3 @@
   background-color: transparent;
   border-width: 0;
 }
-
-.markdown-source-view.mod-cm6
-  .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent,
-.markdown-source-view.mod-cm6
-  .cm-line.nested-ordered-numbering-line.nested-ordered-numbering-hanging-indent.HyperMD-codeblock {
-  padding-inline-start: var(
-    --nested-ordered-numbering-hanging-indent,
-    0px
-  ) !important;
-  text-indent: calc(
-    0px - var(--nested-ordered-numbering-hanging-indent, 0px)
-  ) !important;
-}
